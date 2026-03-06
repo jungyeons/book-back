@@ -1,4 +1,4 @@
-package com.bookvillage.mock.controller.admin;
+package com.bookvillage.backend.controller;
 
 import com.bookvillage.mock.dto.*;
 import com.bookvillage.mock.entity.AccessLog;
