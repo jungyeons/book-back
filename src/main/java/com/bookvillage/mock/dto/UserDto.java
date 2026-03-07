@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 @Data
 public class UserDto {
     private Long id;
+    private String username;
     private String email;
     private String name;
     private String phone;
@@ -20,6 +21,7 @@ public class UserDto {
     public static UserDto from(User user) {
         UserDto dto = new UserDto();
         dto.setId(user.getId());
+        dto.setUsername(user.getUsername());
         dto.setEmail(user.getEmail());
         dto.setName(user.getName());
         dto.setPhone(user.getPhone());

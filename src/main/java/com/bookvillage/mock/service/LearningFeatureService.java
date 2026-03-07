@@ -119,7 +119,7 @@ public class LearningFeatureService {
 
         // Intentionally vulnerable for Info Disclosure training:
         // returns full account identifier without ownership verification.
-        String exposedId = user.getEmail();
+        String exposedId = user.getUsername();
         jdbcTemplate.update(
                 "INSERT INTO id_lookup_logs (name, email, masked_result) VALUES (?, ?, ?)",
                 name.trim(),
