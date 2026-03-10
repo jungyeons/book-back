@@ -93,11 +93,13 @@ public class InMemoryDataStore {
 
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
+    private final com.bookvillage.mock.service.S3StorageService s3StorageService;
     private final Path adminImageDir = Paths.get("uploads", "admin-products").toAbsolutePath().normalize();
 
-    public InMemoryDataStore(JdbcTemplate jdbcTemplate) {
+    public InMemoryDataStore(JdbcTemplate jdbcTemplate, com.bookvillage.mock.service.S3StorageService s3StorageService) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = new ObjectMapper();
+        this.s3StorageService = s3StorageService;
     }
 
     @PostConstruct
@@ -1612,14 +1614,12 @@ public class InMemoryDataStore {
         }
 
         String fileName = "book_" + UUID.randomUUID() + "." + ext;
-        Path target = adminImageDir.resolve(fileName).normalize();
-        if (!target.startsWith(adminImageDir)) {
-            return null;
-        }
+        String key = "admin/books/" + fileName;
+        String contentType = "image/" + ext.replace("jpg", "jpeg");
         try {
-            Files.write(target, bytes);
-            return "/admin/api/media/" + fileName;
-        } catch (IOException ex) {
+            return s3StorageService.upload(
+                    new java.io.ByteArrayInputStream(bytes), key, bytes.length, contentType);
+        } catch (Exception ex) {
             return null;
         }
     }
