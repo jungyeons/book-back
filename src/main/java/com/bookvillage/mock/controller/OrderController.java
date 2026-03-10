@@ -45,6 +45,13 @@ public class OrderController {
         return ResponseEntity.ok(orders);
     }
 
+    @GetMapping("/{orderId}")
+    public ResponseEntity<OrderDto> getOrderDetail(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long orderId) {
+        return ResponseEntity.ok(orderService.getOrderById(principal.getUserId(), orderId));
+    }
+
     @GetMapping("/lookup")
     public ResponseEntity<GuestOrderLookupDto> lookupOrder(@RequestParam String orderNumber) {
         return ResponseEntity.ok(orderService.getGuestLookupByOrderNumber(orderNumber));
