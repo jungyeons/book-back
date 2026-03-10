@@ -68,7 +68,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new com.bookvillage.mock.util.Sha1PasswordEncoder();
+        return new com.bookvillage.backend.util.Sha1PasswordEncoder();
     }
 
     @Bean
