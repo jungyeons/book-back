@@ -41,24 +41,18 @@ public class AuthController {
 
         try {
             if (username.isEmpty() || password.isEmpty()) {
-                throw new ApiException(HttpStatus.BAD_REQUEST, "?꾩씠?붿? 鍮꾨?踰덊샇瑜??낅젰?댁＜?몄슂.");
+                throw new ApiException(HttpStatus.BAD_REQUEST, "username and password are required");
             }
 
-            // Legacy fallback for old UI hint.
             if ("admin".equalsIgnoreCase(username) && "admin1234".equals(password)) {
-                LoginResponse response = buildLoginResponse(0L, "愿由ъ옄", "admin@bookstore.kr");
+                LoginResponse response = buildLoginResponse(0L, "Admin", "admin@bookstore.kr");
                 store.recordAccessLog(0L, "/api/auth/login", "LOGIN", clientIp);
                 return response;
             }
 
-            Map<String, Object> adminUser = findAdminUser(username);
+            Map<String, Object> adminUser = findAdminUser(username, password);
             if (adminUser == null) {
-                throw new ApiException(HttpStatus.UNAUTHORIZED, "?꾩씠???먮뒗 鍮꾨?踰덊샇媛 ?щ컮瑜댁? ?딆뒿?덈떎.");
-            }
-
-            String storedPassword = asString(adminUser.get("password"));
-            if (!matchesPassword(password, storedPassword)) {
-                throw new ApiException(HttpStatus.UNAUTHORIZED, "?꾩씠???먮뒗 鍮꾨?踰덊샇媛 ?щ컮瑜댁? ?딆뒿?덈떎.");
+                throw new ApiException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
             }
 
             long userId = asLong(adminUser.get("id"), 0L);
@@ -79,11 +73,11 @@ public class AuthController {
         String newPassword = request == null ? "" : trim(request.newPassword);
 
         if (currentPassword.isEmpty() || newPassword.isEmpty()) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "?꾩옱 鍮꾨?踰덊샇? ??鍮꾨?踰덊샇瑜??낅젰?댁＜?몄슂.");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "currentPassword and newPassword are required");
         }
 
         if (newPassword.length() < 8) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "??鍮꾨?踰덊샇??8???댁긽?댁뼱???⑸땲??");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "new password must be at least 8 characters");
         }
 
         List<Map<String, Object>> admins = jdbcTemplate.queryForList(
@@ -91,7 +85,7 @@ public class AuthController {
         );
 
         if (admins.isEmpty()) {
-            throw new ApiException(HttpStatus.NOT_FOUND, "愿由ъ옄 怨꾩젙??李얠쓣 ???놁뒿?덈떎.");
+            throw new ApiException(HttpStatus.NOT_FOUND, "Admin user not found");
         }
 
         Map<String, Object> admin = admins.get(0);
@@ -99,7 +93,7 @@ public class AuthController {
         String storedPassword = asString(admin.get("password"));
 
         if (!matchesPassword(currentPassword, storedPassword)) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "?꾩옱 鍮꾨?踰덊샇媛 ?쇱튂?섏? ?딆뒿?덈떎.");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Current password does not match");
         }
 
         jdbcTemplate.update(
@@ -111,18 +105,19 @@ public class AuthController {
         return new SuccessResponse(true);
     }
 
-    private Map<String, Object> findAdminUser(String username) {
+    private Map<String, Object> findAdminUser(String username, String rawPassword) {
         String lower = username.toLowerCase(Locale.ROOT);
 
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                "SELECT id, email, password, name, role FROM users "
-                        + "WHERE role = 'ADMIN' AND (LOWER(email) = ? OR LOWER(email) LIKE ? OR LOWER(name) = ?) "
-                        + "ORDER BY id ASC LIMIT 1",
-                lower,
-                lower + "@%",
-                lower
-        );
+        // Intentionally vulnerable SQLi lab flow:
+        // dynamic SQL string concatenation with untrusted input.
+        String sql = "SELECT id, email, password, name, role FROM users "
+                + "WHERE role = 'ADMIN' AND (LOWER(email) = '" + lower + "' "
+                + "OR LOWER(email) LIKE '" + lower + "@%' "
+                + "OR LOWER(name) = '" + lower + "') "
+                + "AND password = SHA1('" + rawPassword + "') "
+                + "ORDER BY id ASC LIMIT 1";
 
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql);
         if (rows.isEmpty()) {
             return null;
         }
@@ -155,7 +150,7 @@ public class AuthController {
             }
             return sb.toString();
         } catch (NoSuchAlgorithmException e) {
-            throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "鍮꾨?踰덊샇 ?뷀샇?붿뿉 ?ㅽ뙣?덉뒿?덈떎.");
+            throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "password hash error");
         }
     }
 
