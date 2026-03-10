@@ -1,0 +1,9 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ------------------< com.bookvillage:bookvillage-mock >------------------
+[INFO] Building bookvillage-mock 1.0.0
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:2.6.5:run (default-cli) > test-compile @ bookvillage-mock >>>
+^C

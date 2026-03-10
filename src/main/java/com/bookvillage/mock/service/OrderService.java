@@ -189,6 +189,12 @@ public class OrderService {
                 .collect(Collectors.toList());
     }
 
+    public OrderDto getOrderById(Long userId, Long orderId) {
+        return orderRepository.findByIdAndUserId(orderId, userId)
+                .map(OrderDto::from)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found"));
+    }
+
     public OrderDto getOrderByOrderNumber(String orderNumber) {
         return orderRepository.findByOrderNumber(orderNumber)
                 .map(OrderDto::from)

@@ -31,6 +31,18 @@ file:
   storage-path: ./uploads/receipts
   base-path: ./uploads
 
+cloud:
+  aws:
+    credentials:
+      access-key: ${AWS_ACCESS_KEY:local-dummy-key}
+      secret-key: ${AWS_SECRET_KEY:local-dummy-secret}
+    region:
+      static: ${AWS_REGION:ap-northeast-2}
+    s3:
+      bucket: ${AWS_S3_BUCKET:local-dummy-bucket}
+    stack:
+      auto: false
+
 springdoc:
   api-docs:
     path: /v3/api-docs
