@@ -1,18 +1,12 @@
 package com.bookvillage.mock.service;
 
 import lombok.Getter;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import javax.annotation.PostConstruct;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.*;
 
 @Service
@@ -23,19 +17,10 @@ public class BoardAttachmentStorageService {
             "png", "jpg", "jpeg", "gif", "webp", "pdf", "txt", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "zip"
     ));
 
-    @Value("${file.base-path:./uploads}")
-    private String basePathConfig;
+    private final S3StorageService s3StorageService;
 
-    private Path attachmentBasePath;
-
-    @PostConstruct
-    public void init() {
-        attachmentBasePath = Paths.get(basePathConfig, "board").toAbsolutePath().normalize();
-        try {
-            Files.createDirectories(attachmentBasePath);
-        } catch (IOException e) {
-            throw new RuntimeException("Could not initialize board attachment directory", e);
-        }
+    public BoardAttachmentStorageService(S3StorageService s3StorageService) {
+        this.s3StorageService = s3StorageService;
     }
 
     public StoredFile store(MultipartFile file, Long postId) {
@@ -53,37 +38,22 @@ public class BoardAttachmentStorageService {
         }
 
         String storedName = "post_" + postId + "_" + UUID.randomUUID() + "." + ext;
-        Path target = attachmentBasePath.resolve(storedName).normalize();
-        if (!target.startsWith(attachmentBasePath)) {
-            throw new IllegalArgumentException("Invalid file path.");
-        }
+        String s3Key = "board/" + storedName;
+        String contentType = normalizeContentType(file.getContentType());
 
         try {
-            Files.copy(file.getInputStream(), target, StandardCopyOption.REPLACE_EXISTING);
+            s3StorageService.upload(file.getInputStream(), s3Key, file.getSize(), contentType);
         } catch (IOException e) {
             throw new RuntimeException("Failed to store attachment", e);
         }
 
-        String contentType = normalizeContentType(file.getContentType());
         return new StoredFile(originalName, storedName, contentType, file.getSize());
     }
 
     public Resource loadAsResource(String storedName) {
         String safeName = sanitizeStoredName(storedName);
-        Path target = attachmentBasePath.resolve(safeName).normalize();
-        if (!target.startsWith(attachmentBasePath)) {
-            throw new IllegalArgumentException("Invalid file path.");
-        }
-
-        try {
-            Resource resource = new UrlResource(target.toUri());
-            if (resource.exists() && resource.isReadable()) {
-                return resource;
-            }
-            throw new IllegalArgumentException("Attachment not found.");
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to read attachment", e);
-        }
+        String s3Key = "board/" + safeName;
+        return new InputStreamResource(s3StorageService.download(s3Key));
     }
 
     public void deleteQuietly(String storedName) {
@@ -91,16 +61,7 @@ public class BoardAttachmentStorageService {
             return;
         }
         String safeName = sanitizeStoredName(storedName);
-        Path target = attachmentBasePath.resolve(safeName).normalize();
-        if (!target.startsWith(attachmentBasePath)) {
-            return;
-        }
-
-        try {
-            Files.deleteIfExists(target);
-        } catch (IOException ignored) {
-            // Best effort cleanup.
-        }
+        s3StorageService.deleteQuietly("board/" + safeName);
     }
 
     private String sanitizeOriginalName(String originalName) {

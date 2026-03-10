@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -45,6 +46,7 @@ public class ReviewService {
     private final ReviewRepository reviewRepository;
     private final JdbcTemplate jdbcTemplate;
     private final SecurityLabService securityLabService;
+    private final S3StorageService s3StorageService;
     private final ExpressionParser expressionParser = new SpelExpressionParser();
 
     @Transactional
@@ -75,8 +77,14 @@ public class ReviewService {
             throw new IllegalArgumentException("file is required");
         }
         String original = file.getOriginalFilename() == null ? "upload.bin" : file.getOriginalFilename();
-        String filename = "review_" + reviewId + "_" + UUID.randomUUID() + "_" + original;
-        String url = "https://cdn.bookvillage.mock/reviews/" + filename;
+        String ext = original.contains(".") ? original.substring(original.lastIndexOf('.') + 1) : "bin";
+        String key = "reviews/review_" + reviewId + "_" + UUID.randomUUID() + "." + ext;
+        String url;
+        try {
+            url = s3StorageService.upload(file.getInputStream(), key, file.getSize(), file.getContentType());
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to upload review image", e);
+        }
         review.setImageUrl(url);
         review = reviewRepository.save(review);
         return enrich(review);
