@@ -1,5 +1,7 @@
 package com.bookvillage.mock.controller;
 
+import com.bookvillage.mock.entity.Order;
+import com.bookvillage.mock.repository.OrderRepository;
 import com.bookvillage.mock.service.FileService;
 import com.bookvillage.mock.service.SecurityLabService;
 import lombok.RequiredArgsConstructor;
@@ -23,10 +25,12 @@ public class FileController {
 
     private final FileService fileService;
     private final SecurityLabService securityLabService;
+    private final OrderRepository orderRepository;
 
     @GetMapping("/api/download")
     public ResponseEntity<?> download(@RequestParam String file) {
         try {
+            maybeRegenerateReceipt(file);
             Resource resource = fileService.loadFileAsResource(file);
             return ResponseEntity.ok()
                     .contentType(MediaType.APPLICATION_PDF)
@@ -37,6 +41,25 @@ public class FileController {
                     "error", e.getMessage()
             ));
         }
+    }
+
+    private void maybeRegenerateReceipt(String file) {
+        if (file == null) {
+            return;
+        }
+        String trimmed = file.trim();
+        if (!trimmed.startsWith("order_") || !trimmed.endsWith(".pdf")) {
+            return;
+        }
+
+        String orderNumber = trimmed.substring("order_".length(), trimmed.length() - ".pdf".length());
+        Order order = orderRepository.findByOrderNumber(orderNumber).orElse(null);
+        if (order == null) {
+            return;
+        }
+
+        // Always regenerate receipt with the latest template for existing orders.
+        fileService.generateReceipt(order);
     }
 
     @GetMapping("/api/files")
