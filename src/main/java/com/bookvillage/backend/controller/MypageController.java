@@ -1,5 +1,7 @@
 package com.bookvillage.backend.controller;
 
+import com.bookvillage.backend.dto.ReviewDto;
+import com.bookvillage.backend.dto.ReviewUpdateRequest;
 import com.bookvillage.backend.security.UserPrincipal;
 import com.bookvillage.backend.service.LearningFeatureService;
 import com.bookvillage.backend.service.ReviewService;
@@ -101,6 +103,21 @@ public class MypageController {
             @PathVariable Long postId) {
         learningFeatureService.deleteFavoritePost(principal.getUserId(), postId);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/reviews")
+    public ResponseEntity<List<ReviewDto>> myReviews(@AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(reviewService.getMyReviews(principal.getUserId()));
+    }
+
+    @PutMapping("/reviews/{reviewId}")
+    public ResponseEntity<ReviewDto> updateReview(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long reviewId,
+            @RequestBody(required = false) ReviewUpdateRequest request) {
+        Integer rating = request != null ? request.getRating() : null;
+        String content = request != null ? request.getContent() : null;
+        return ResponseEntity.ok(reviewService.updateMyReview(principal.getUserId(), reviewId, rating, content));
     }
 
     @DeleteMapping("/reviews/{reviewId}")

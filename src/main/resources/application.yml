@@ -50,6 +50,7 @@ file:
   storage-path: ./uploads/receipts
   base-path: ./uploads
   lab-upload-path: ./uploads/lab
+  product-image-path: ./uploads/admin-products
 
 cloud:
   aws:

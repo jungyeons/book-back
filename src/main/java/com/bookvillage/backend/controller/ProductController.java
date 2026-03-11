@@ -5,6 +5,8 @@ import com.bookvillage.backend.common.SuccessResponse;
 import com.bookvillage.backend.model.Product;
 import com.bookvillage.backend.request.DeleteIdsRequest;
 import com.bookvillage.backend.service.InMemoryDataStore;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -14,7 +16,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
+import java.nio.file.Paths;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestController
@@ -22,8 +28,45 @@ import java.util.Map;
 public class ProductController {
     private final InMemoryDataStore store;
 
+    @Value("${file.product-image-path:./uploads/admin-products}")
+    private String productImagePath;
+
     public ProductController(InMemoryDataStore store) {
         this.store = store;
+    }
+
+    /**
+     * 상품 이미지 업로드
+     */
+    @PostMapping("/upload-image")
+    public ResponseEntity<?> uploadImage(@RequestParam("file") MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "파일을 선택해주세요."));
+        }
+        try {
+            String originalName = file.getOriginalFilename();
+            if (originalName == null || originalName.isBlank()) {
+                originalName = "image.bin";
+            }
+            // 파일명에서 경로 구분자 제거
+            originalName = originalName.replace("\\", "/");
+            int idx = originalName.lastIndexOf('/');
+            if (idx >= 0) originalName = originalName.substring(idx + 1);
+
+            File uploadDir = Paths.get(productImagePath).toAbsolutePath().toFile();
+            uploadDir.mkdirs();
+
+            File dest = new File(uploadDir, originalName);
+            file.transferTo(dest);
+
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("url", "/product-images/" + originalName);
+            body.put("fileName", originalName);
+            body.put("size", file.getSize());
+            return ResponseEntity.ok(body);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("error", "이미지 업로드에 실패했습니다."));
+        }
     }
 
     @GetMapping

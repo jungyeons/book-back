@@ -96,6 +96,35 @@ public class ReviewService {
                 .collect(Collectors.toList());
     }
 
+    public List<ReviewDto> getMyReviews(Long userId) {
+        return reviewRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
+                .map(this::enrich)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public ReviewDto updateMyReview(Long userId, Long reviewId, Integer rating, String content) {
+        Review review = reviewRepository.findById(reviewId)
+                .orElseThrow(() -> new IllegalArgumentException("Review not found"));
+        if (!review.getUserId().equals(userId)) {
+            throw new IllegalArgumentException("Cannot update another user's review");
+        }
+
+        if (rating != null) {
+            if (rating < 1 || rating > 5) {
+                throw new IllegalArgumentException("rating must be between 1 and 5");
+            }
+            review.setRating(rating);
+        }
+
+        String rawContent = content == null ? "" : content.trim();
+        review.setContent(rawContent);
+        review.setSummary(buildUnsafeTemplateSummary(rawContent, userId, review.getBookId(), review.getRating()));
+
+        Review saved = reviewRepository.save(review);
+        return enrich(saved);
+    }
+
     @Transactional
     public ReviewDto likeReview(Long userId, Long reviewId) {
         Integer recentCount = jdbcTemplate.queryForObject(

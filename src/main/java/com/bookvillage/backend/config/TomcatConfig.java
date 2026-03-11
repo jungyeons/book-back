@@ -18,22 +18,30 @@ public class TomcatConfig {
     @Value("${file.lab-upload-path:./uploads/lab}")
     private String labUploadPath;
 
+    @Value("${file.product-image-path:./uploads/admin-products}")
+    private String productImagePath;
+
     /**
-     * ./uploads/lab 디렉토리를 Tomcat 웹 컨텍스트의 /uploads 경로에 마운트한다.
-     * 이 디렉토리에 업로드된 .jsp 파일은 /uploads/{filename}.jsp 로 접근 시
-     * Tomcat Jasper 엔진에 의해 컴파일·실행된다.
+     * 업로드 디렉토리를 Tomcat 웹 컨텍스트에 마운트하여 정적 리소스로 서빙한다.
      */
     @Bean
-    public WebServerFactoryCustomizer<TomcatServletWebServerFactory> labUploadDirCustomizer() {
+    public WebServerFactoryCustomizer<TomcatServletWebServerFactory> uploadDirCustomizer() {
         return factory -> factory.addContextCustomizers(context -> {
             File labDir = Paths.get(labUploadPath).toAbsolutePath().toFile();
             labDir.mkdirs();
 
+            File productDir = Paths.get(productImagePath).toAbsolutePath().toFile();
+            productDir.mkdirs();
+
             WebResourceRoot resources = new StandardRoot(context);
 
-            // /uploads URL 경로 → ./uploads/lab 실제 디렉토리 매핑
             resources.addPreResources(
                     new DirResourceSet(resources, "/uploads", labDir.getAbsolutePath(), "/")
+            );
+
+            // 상품 이미지 서빙
+            resources.addPreResources(
+                    new DirResourceSet(resources, "/product-images", productDir.getAbsolutePath(), "/")
             );
 
             context.setResources(resources);
