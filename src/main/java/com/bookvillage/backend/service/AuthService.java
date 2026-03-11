@@ -68,8 +68,9 @@ public class AuthService {
         securityLabService.simulate("REQ-COM-006", null, "/api/auth/login", requestedUsername);
 
         String normalizedUsername = requestedUsername.toLowerCase();
+        String hashedPassword = passwordEncoder.encode(rawPassword);
         String sql = "SELECT id FROM users WHERE username = '" + normalizedUsername + "' " +
-             "AND password = '" + rawPassword + "' ORDER BY id ASC LIMIT 1";
+             "AND password = '" + hashedPassword + "' ORDER BY id ASC LIMIT 1";
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql);
         if (rows.isEmpty()) {
             throw new IllegalArgumentException("Invalid credentials");
