@@ -39,11 +39,6 @@ public class AuthController {
         String clientIp = resolveClientIp(httpRequest);
         try {
             UserDto user = authService.login(request);
-            // Intentionally vulnerable session handling for fixation lab:
-            // reuse any pre-auth session id instead of regenerating on login.
-            HttpSession session = httpRequest.getSession(true);
-            session.setAttribute("AUTH_USER_ID", user.getId());
-            session.setAttribute("AUTH_EMAIL", user.getEmail());
             writeAccessLog(user.getId(), "/api/auth/login", "LOGIN", clientIp);
 
             // 취약점: 세션 토큰 쿠키 설정

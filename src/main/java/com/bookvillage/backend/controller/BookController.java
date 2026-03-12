@@ -6,10 +6,14 @@ import com.bookvillage.backend.service.BookService;
 import com.bookvillage.backend.service.LearningFeatureService;
 import com.bookvillage.backend.service.SecurityLabService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -85,5 +89,49 @@ public class BookController {
                 Math.min(120, book.getDescription() == null ? 0 : book.getDescription().length())));
         securityLabService.simulate("REQ-COM-014", principal != null ? principal.getUserId() : null, "/api/books/" + bookId + "/preview", source);
         return ResponseEntity.ok(body);
+    }
+
+    /**
+     * [SSRF 취약점] 서버가 클라이언트가 전달한 URL을 직접 fetch하여 반환합니다.
+     * url 파라미터에 대한 검증이 없으므로 내부 메타데이터 서버(169.254.169.254 등) 접근이 가능합니다.
+     */
+    @GetMapping("/{bookId}/image-proxy")
+    public ResponseEntity<byte[]> imageProxy(
+            @PathVariable Long bookId,
+            @RequestParam String url) {
+        try {
+            URL targetUrl = new URL(url);
+            HttpURLConnection conn = (HttpURLConnection) targetUrl.openConnection();
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
+            conn.setInstanceFollowRedirects(true);
+            conn.setRequestProperty("User-Agent", "BookVillage-ImageProxy/1.0");
+            conn.connect();
+
+            int status = conn.getResponseCode();
+            String contentType = conn.getContentType();
+
+            InputStream is = (status >= 400 || conn.getErrorStream() != null)
+                    ? conn.getErrorStream()
+                    : conn.getInputStream();
+            byte[] data = (is != null) ? is.readAllBytes() : new byte[0];
+
+            MediaType mediaType;
+            try {
+                String rawType = contentType != null ? contentType.split(";")[0].trim() : "application/octet-stream";
+                mediaType = MediaType.parseMediaType(rawType);
+            } catch (Exception e) {
+                mediaType = MediaType.APPLICATION_OCTET_STREAM;
+            }
+
+            return ResponseEntity.ok()
+                    .contentType(mediaType)
+                    .body(data);
+        } catch (Exception e) {
+            byte[] errBody = ("Error fetching URL: " + e.getMessage()).getBytes();
+            return ResponseEntity.status(500)
+                    .contentType(MediaType.TEXT_PLAIN)
+                    .body(errBody);
+        }
     }
 }

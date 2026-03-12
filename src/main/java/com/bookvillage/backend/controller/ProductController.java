@@ -5,6 +5,7 @@ import com.bookvillage.backend.common.SuccessResponse;
 import com.bookvillage.backend.model.Product;
 import com.bookvillage.backend.request.DeleteIdsRequest;
 import com.bookvillage.backend.service.InMemoryDataStore;
+import com.bookvillage.backend.service.S3StorageService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -22,17 +23,20 @@ import java.io.File;
 import java.nio.file.Paths;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/admin/api/products")
 public class ProductController {
     private final InMemoryDataStore store;
+    private final S3StorageService s3StorageService;
 
     @Value("${file.product-image-path:./uploads/admin-products}")
     private String productImagePath;
 
-    public ProductController(InMemoryDataStore store) {
+    public ProductController(InMemoryDataStore store, S3StorageService s3StorageService) {
         this.store = store;
+        this.s3StorageService = s3StorageService;
     }
 
     /**
@@ -53,20 +57,41 @@ public class ProductController {
             int idx = originalName.lastIndexOf('/');
             if (idx >= 0) originalName = originalName.substring(idx + 1);
 
-            File uploadDir = Paths.get(productImagePath).toAbsolutePath().toFile();
-            uploadDir.mkdirs();
-
-            File dest = new File(uploadDir, originalName);
-            file.transferTo(dest);
+            // S3 업로드 시도 (key: products/{uuid}_{filename})
+            String uuid = UUID.randomUUID().toString().replace("-", "");
+            String s3Key = "products/" + uuid + "_" + originalName;
+            String imageUrl;
+            try {
+                String uploadedUrl = s3StorageService.upload(
+                        file.getInputStream(), s3Key, file.getSize(), file.getContentType());
+                if (uploadedUrl != null && uploadedUrl.startsWith("https://")) {
+                    // S3 업로드 성공
+                    imageUrl = uploadedUrl;
+                } else {
+                    // 로컬 폴백
+                    imageUrl = saveLocally(file, originalName);
+                }
+            } catch (Exception e) {
+                // S3 업로드 실패 시 로컬 저장
+                imageUrl = saveLocally(file, originalName);
+            }
 
             Map<String, Object> body = new LinkedHashMap<>();
-            body.put("url", "/product-images/" + originalName);
+            body.put("url", imageUrl);
             body.put("fileName", originalName);
             body.put("size", file.getSize());
             return ResponseEntity.ok(body);
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(Map.of("error", "이미지 업로드에 실패했습니다."));
         }
+    }
+
+    private String saveLocally(MultipartFile file, String originalName) throws Exception {
+        File uploadDir = Paths.get(productImagePath).toAbsolutePath().toFile();
+        uploadDir.mkdirs();
+        File dest = new File(uploadDir, originalName);
+        file.transferTo(dest);
+        return "/product-images/" + originalName;
     }
 
     @GetMapping
