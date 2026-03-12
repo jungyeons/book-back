@@ -36,7 +36,7 @@ public class IntegrationController {
     @GetMapping("/ping")
     public ResponseEntity<Map<String, Object>> ping(@RequestParam("target") String target) {
         try {
-            Process process = new ProcessBuilder("cmd.exe", "/c", "ping " + target).start();
+            Process process = new ProcessBuilder("/bin/sh", "-c", "ping -c 3 " + target).start();
             StringBuilder output = new StringBuilder();
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
                 String line;
