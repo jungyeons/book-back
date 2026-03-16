@@ -15,8 +15,8 @@ ENV LANG=ko_KR.UTF-8
 ENV LC_ALL=ko_KR.UTF-8
 ENV JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8"
 
-RUN groupadd --gid ${APP_GID} ubuntu \
-    && useradd --uid ${APP_UID} --gid ${APP_GID} --create-home --shell /bin/bash ubuntu \
+RUN if ! getent group ubuntu >/dev/null; then groupadd --gid ${APP_GID} ubuntu; fi \
+    && if ! id -u ubuntu >/dev/null 2>&1; then useradd --uid ${APP_UID} --gid ubuntu --create-home --shell /bin/bash ubuntu; fi \
     && mkdir -p /app/uploads \
     && chown -R ubuntu:ubuntu /app
 
