@@ -75,7 +75,7 @@ public class AuthService {
         return UserDto.from(user);
     }
 
-    public UserDto login(AuthRequest request) {
+    public UserDto login(AuthRequest request, String clientIp) {
         String requestedUsername = request != null && request.getUsername() != null
                 ? request.getUsername()
                 : (request != null ? request.getEmail() : null);
@@ -99,11 +99,13 @@ public class AuthService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid credentials"));
 
-        // 취약점: 세션 토큰을 IP 바인딩 없이 생성 → 세션 하이재킹 가능
+        // 취약점 시나리오: 로그인 IP를 세션과 함께 저장 (이중 검증용)
+        // /cookie-login API에서 이 IP와 요청 IP를 비교하지만
+        // RequestIpResolver가 X-Forwarded-For 헤더를 신뢰 → XSS 탈취 후 헤더 조작으로 우회 가능
         String sessionToken = UUID.randomUUID().toString();
         jdbcTemplate.update(
-                "INSERT INTO user_sessions (user_id, session_key, active) VALUES (?, ?, true)",
-                userId, sessionToken);
+                "INSERT INTO user_sessions (user_id, session_key, active, login_ip) VALUES (?, ?, true, ?)",
+                userId, sessionToken, clientIp);
 
         return UserDto.from(user, sessionToken);
     }

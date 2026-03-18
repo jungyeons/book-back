@@ -53,6 +53,11 @@ public class AdminAuthController {
                 throw new ApiException(HttpStatus.UNAUTHORIZED, "아이디 또는 비밀번호가 올바르지 않습니다.");
             }
 
+            String role = asString(adminUser.get("role"));
+            if (!"ADMIN".equalsIgnoreCase(role)) {
+                throw new ApiException(HttpStatus.FORBIDDEN, "관리자 권한이 없습니다.");
+            }
+
             long userId = asLong(adminUser.get("id"), 0L);
             String name = asString(adminUser.get("name"));
             String email = asString(adminUser.get("email"));
