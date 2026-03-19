@@ -94,11 +94,21 @@ public class BookController {
     /**
      * [SSRF 취약점] 서버가 클라이언트가 전달한 URL을 직접 fetch하여 반환합니다.
      * url 파라미터에 대한 검증이 없으므로 내부 메타데이터 서버(169.254.169.254 등) 접근이 가능합니다.
+     * [필터링] "127.0.0.1" 및 "169.254.169.254" 문자열만 차단
+     * 우회 가능: 2130706433(십진수), 0x7f000001(16진수), 0177.0.0.1(8진수),
+     *           localhost, ::1, http://[::ffff:7f00:1] 등
      */
     @GetMapping("/{bookId}/image-proxy")
     public ResponseEntity<byte[]> imageProxy(
             @PathVariable Long bookId,
             @RequestParam String url) {
+        String trimmedUrl = url.trim();
+        if (trimmedUrl.contains("127.0.0.1") || trimmedUrl.contains("169.254.169.254")) {
+            byte[] errBody = "접근이 차단된 주소입니다.".getBytes();
+            return ResponseEntity.badRequest()
+                    .contentType(MediaType.TEXT_PLAIN)
+                    .body(errBody);
+        }
         try {
             URL targetUrl = new URL(url);
             HttpURLConnection conn = (HttpURLConnection) targetUrl.openConnection();
