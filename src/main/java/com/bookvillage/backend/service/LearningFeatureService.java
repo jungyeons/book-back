@@ -276,11 +276,20 @@ public class LearningFeatureService {
                 "SELECT code, discount_type AS discountType, discount_value AS discountValue, remaining_count AS remainingCount " +
                         "FROM coupons ORDER BY id ASC"
         );
+        List<Map<String, Object>> paymentTransactions = jdbcTemplate.queryForList(
+                "SELECT pt.id, pt.order_id AS orderId, o.order_number AS orderNumber, pt.payment_method AS paymentMethod, " +
+                        "pt.coupon_code AS couponCode, pt.point_used AS pointUsed, pt.amount, pt.status, pt.created_at AS createdAt " +
+                        "FROM payment_transactions pt " +
+                        "JOIN orders o ON o.id = pt.order_id " +
+                        "WHERE pt.user_id = ? ORDER BY pt.created_at DESC",
+                userId
+        );
 
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("currentPoints", points != null ? points : 0);
         data.put("pointHistories", histories);
         data.put("coupons", coupons);
+        data.put("paymentTransactions", paymentTransactions);
         return data;
     }
 
