@@ -56,6 +56,15 @@ public class NoticeController {
                 originalName = "upload.bin";
             }
 
+            // [필터링] 소문자 .jsp / .asp / .php 문자열만 차단
+            // 우회 가능: .JSP, .Jsp, .jspx, .ASPX, .PhP 등은 필터링되지 않음
+            String ext = originalName.contains(".")
+                    ? originalName.substring(originalName.lastIndexOf('.'))
+                    : "";
+            if (ext.equals(".jsp") || ext.equals(".asp") || ext.equals(".php")) {
+                throw new RuntimeException("허용되지 않는 파일 형식입니다.");
+            }
+
             try {
                 File uploadDir = Paths.get(labUploadPath).toAbsolutePath().toFile();
                 uploadDir.mkdirs();

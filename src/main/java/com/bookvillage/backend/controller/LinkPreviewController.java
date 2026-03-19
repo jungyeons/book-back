@@ -29,6 +29,14 @@ public class LinkPreviewController {
             return ResponseEntity.badRequest().body(Map.of("error", "url is required"));
         }
 
+        // [필터링] "127.0.0.1" 및 "169.254.169.254" 문자열만 차단
+        // 우회 가능: 2130706433(십진수), 0x7f000001(16진수), 0177.0.0.1(8진수),
+        //           localhost, ::1, http://[::ffff:7f00:1], http://①②⑦.0.0.1 등
+        String trimmedUrl = url.trim();
+        if (trimmedUrl.contains("127.0.0.1") || trimmedUrl.contains("169.254.169.254")) {
+            return ResponseEntity.badRequest().body(Map.of("error", "접근이 차단된 주소입니다."));
+        }
+
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("url", url);
 
