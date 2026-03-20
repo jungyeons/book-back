@@ -98,8 +98,9 @@ public class OrderService {
         order.setReceiptFilePath(receiptPath);
         order = orderRepository.save(order);
 
+        String maskedCard = maskCardNumber(request.getCardNumber());
         jdbcTemplate.update(
-                "INSERT INTO payment_transactions (order_id, user_id, payment_method, coupon_code, point_used, amount, status, learning_note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO payment_transactions (order_id, user_id, payment_method, coupon_code, point_used, amount, status, learning_note, card_number_masked, card_holder, card_expiry) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 order.getId(),
                 userId,
                 paymentMethod,
@@ -107,7 +108,10 @@ public class OrderService {
                 usedPoints,
                 finalAmount,
                 "PAID",
-                "Controlled security-lab checkout"
+                "Controlled security-lab checkout",
+                maskedCard,
+                request.getCardHolder(),
+                request.getCardExpiry()
         );
 
         if (usedPoints > 0) {
@@ -228,6 +232,19 @@ public class OrderService {
         dto.setCreatedAt(order.getCreatedAt());
         dto.setMaskedShippingAddress(maskAddress(order.getShippingAddress()));
         return dto;
+    }
+
+    /**
+     * 카드번호를 마스킹합니다.
+     * 예) 1234-5678-9012-3456 → 1234-****-****-3456
+     */
+    private String maskCardNumber(String cardNumber) {
+        if (cardNumber == null || cardNumber.trim().isEmpty()) return null;
+        String digits = cardNumber.replaceAll("[^0-9]", "");
+        if (digits.length() < 8) return null;
+        String first4 = digits.substring(0, 4);
+        String last4 = digits.substring(digits.length() - 4);
+        return first4 + "-****-****-" + last4;
     }
 
     private String maskAddress(String address) {

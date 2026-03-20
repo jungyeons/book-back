@@ -24,6 +24,15 @@ public class CartRequest {
      */
     private BigDecimal discountAmount;
 
+    /** 카드번호 (CARD 결제 시) - 서버에서 마스킹 후 저장 */
+    private String cardNumber;
+    /** 유효기간 MM/YY */
+    private String cardExpiry;
+    /** CVC (저장하지 않음, 모의 검증용) */
+    private String cardCvc;
+    /** 카드 소유자명 */
+    private String cardHolder;
+
     @Data
     public static class CartItem {
         private Long bookId;
