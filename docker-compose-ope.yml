@@ -10,6 +10,7 @@ services:
         APP_GID: "${APP_GID:-1000}"
     container_name: book-village-backend
     restart: unless-stopped
+    user: "${APP_UID:-1000}:${APP_GID:-1000}"
     environment:
       SPRING_PROFILES_ACTIVE: "${SPRING_PROFILES_ACTIVE:-prod}"
       SPRING_DATASOURCE_URL: "${SPRING_DATASOURCE_URL}"
@@ -22,7 +23,5 @@ services:
       AWS_S3_BUCKET: "${AWS_S3_BUCKET}"
     ports:
       - "${BACKEND_PORT:-8080}:8080"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
 
 volumes: {}

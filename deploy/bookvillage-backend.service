@@ -1,0 +1,16 @@
+[Unit]
+Description=BookVillage Spring Boot Backend
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/bookvillage/backend
+EnvironmentFile=/etc/bookvillage/backend.env
+ExecStart=/bin/sh -c '/usr/bin/java -jar /opt/bookvillage/backend/app.jar --server.port="${BACKEND_PORT:-8080}" --spring.profiles.active="${SPRING_PROFILES_ACTIVE:-prod}"'
+SuccessExitStatus=143
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

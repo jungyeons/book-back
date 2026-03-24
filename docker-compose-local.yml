@@ -17,37 +17,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 12
-    networks:
-      - book-village-local-net
-
-  backend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: book-village-backend-local
-    restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      SPRING_DATASOURCE_URL: "jdbc:mysql://db:3306/${MYSQL_DATABASE:-bookvillage_mock}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci"
-      SPRING_DATASOURCE_USERNAME: "root"
-      SPRING_DATASOURCE_PASSWORD: "${MYSQL_ROOT_PASSWORD:-1234}"
-      AWS_ACCESS_KEY: "${AWS_ACCESS_KEY}"
-      AWS_SECRET_KEY: "${AWS_SECRET_KEY}"
-      AWS_REGION: "${AWS_REGION:-ap-northeast-2}"
-      AWS_S3_BUCKET: "${AWS_S3_BUCKET}"
-    ports:
-      - "${BACKEND_PORT:-8080}:8080"
-    volumes:
-      - backend-uploads-local:/app/uploads
-    networks:
-      - book-village-local-net
 
 volumes:
   mysql-local-data:
-  backend-uploads-local:
-
-networks:
-  book-village-local-net:
-    name: book-village-local-net
