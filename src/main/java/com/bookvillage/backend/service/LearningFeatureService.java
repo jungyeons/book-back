@@ -430,20 +430,9 @@ public class LearningFeatureService {
     public List<NoticeDto> getNotices(String keyword) {
         String kw = keyword == null ? "" : keyword.trim();
         List<NoticeDto> notices = jdbcTemplate.query(
-                "SELECT id, title, content, author_id, created_at FROM notices WHERE (? = '' OR title LIKE CONCAT('%', ?, '%') OR content LIKE CONCAT('%', ?, '%')) ORDER BY created_at DESC",
-                (rs, rowNum) -> {
-                    NoticeDto dto = new NoticeDto();
-                    dto.setId(rs.getLong("id"));
-                    dto.setTitle(rs.getString("title"));
-                    dto.setContent(rs.getString("content"));
-                    dto.setAuthorId(rs.getObject("author_id") != null ? rs.getLong("author_id") : null);
-                    Timestamp created = rs.getTimestamp("created_at");
-                    dto.setCreatedAt(created != null ? created.toLocalDateTime() : null);
-                    return dto;
-                },
-                kw,
-                kw,
-                kw
+                "SELECT id, title, content, author_id, created_at, link_url, urgent FROM notices WHERE (? = '' OR title LIKE CONCAT('%', ?, '%') OR content LIKE CONCAT('%', ?, '%')) ORDER BY created_at DESC",
+                (rs, rowNum) -> mapNoticeRow(rs),
+                kw, kw, kw
         );
         securityLabService.simulate("REQ-COM-023", null, "/api/notices", kw);
         return notices;
@@ -451,17 +440,8 @@ public class LearningFeatureService {
 
     public NoticeDto getNotice(Long noticeId) {
         NoticeDto dto = jdbcTemplate.queryForObject(
-                "SELECT id, title, content, author_id, created_at FROM notices WHERE id = ?",
-                (rs, rowNum) -> {
-                    NoticeDto row = new NoticeDto();
-                    row.setId(rs.getLong("id"));
-                    row.setTitle(rs.getString("title"));
-                    row.setContent(rs.getString("content"));
-                    row.setAuthorId(rs.getObject("author_id") != null ? rs.getLong("author_id") : null);
-                    Timestamp created = rs.getTimestamp("created_at");
-                    row.setCreatedAt(created != null ? created.toLocalDateTime() : null);
-                    return row;
-                },
+                "SELECT id, title, content, author_id, created_at, link_url, urgent FROM notices WHERE id = ?",
+                (rs, rowNum) -> mapNoticeRow(rs),
                 noticeId
         );
         securityLabService.simulate("REQ-COM-024", null, "/api/notices/" + noticeId, dto != null ? dto.getContent() : null);
@@ -470,45 +450,70 @@ public class LearningFeatureService {
 
     /** 첨부파일 정보를 포함한 공지사항 조회 */
     public NoticeDto getNoticeWithAttachment(Long noticeId) {
-        NoticeDto dto = jdbcTemplate.queryForObject(
-                "SELECT id, title, content, author_id, created_at, attachment_name, attachment_url FROM notices WHERE id = ?",
+        return jdbcTemplate.queryForObject(
+                "SELECT id, title, content, author_id, created_at, attachment_name, attachment_url, link_url, urgent FROM notices WHERE id = ?",
                 (rs, rowNum) -> {
-                    NoticeDto row = new NoticeDto();
-                    row.setId(rs.getLong("id"));
-                    row.setTitle(rs.getString("title"));
-                    row.setContent(rs.getString("content"));
-                    row.setAuthorId(rs.getObject("author_id") != null ? rs.getLong("author_id") : null);
-                    Timestamp created = rs.getTimestamp("created_at");
-                    row.setCreatedAt(created != null ? created.toLocalDateTime() : null);
+                    NoticeDto row = mapNoticeRow(rs);
                     row.setAttachmentName(rs.getString("attachment_name"));
                     row.setAttachmentUrl(rs.getString("attachment_url"));
                     return row;
                 },
                 noticeId
         );
+    }
+
+    /**
+     * [Phase 2] 최신 긴급 공지사항 조회 - 앱 메인 화면 팝업용
+     *
+     * 취약점: urgent=1 공지의 linkUrl을 앱이 검증 없이 WebView에 로드
+     * → 공격자가 관리자 권한 탈취 후 피싱 URL 삽입 가능
+     */
+    public NoticeDto getLatestUrgentNotice() {
+        List<NoticeDto> results = jdbcTemplate.query(
+                "SELECT id, title, content, author_id, created_at, link_url, urgent FROM notices WHERE urgent = 1 ORDER BY created_at DESC LIMIT 1",
+                (rs, rowNum) -> mapNoticeRow(rs)
+        );
+        return results.isEmpty() ? null : results.get(0);
+    }
+
+    private NoticeDto mapNoticeRow(java.sql.ResultSet rs) throws java.sql.SQLException {
+        NoticeDto dto = new NoticeDto();
+        dto.setId(rs.getLong("id"));
+        dto.setTitle(rs.getString("title"));
+        dto.setContent(rs.getString("content"));
+        dto.setAuthorId(rs.getObject("author_id") != null ? rs.getLong("author_id") : null);
+        Timestamp created = rs.getTimestamp("created_at");
+        dto.setCreatedAt(created != null ? created.toLocalDateTime() : null);
+        dto.setLinkUrl(rs.getString("link_url"));
+        dto.setUrgent(rs.getBoolean("urgent"));
         return dto;
     }
 
     public NoticeDto createNotice(Long adminUserId, String title, String content) {
-        return createNotice(adminUserId, title, content, null, null);
+        return createNotice(adminUserId, title, content, null, null, null, false);
+    }
+
+    public NoticeDto createNotice(Long adminUserId, String title, String content,
+                                  String attachmentName, String attachmentUrl) {
+        return createNotice(adminUserId, title, content, attachmentName, attachmentUrl, null, false);
     }
 
     /**
-     * [CTF Lab] 공지사항 등록 (첨부파일 포함)
-     * 취약점: 파일 확장자/MIME 검증 없이 attachmentUrl 그대로 저장 및 반환
+     * [CTF Lab] 공지사항 등록 (첨부파일 + 긴급 팝업 링크 포함)
+     * 취약점:
+     *   - 파일 확장자/MIME 검증 없이 attachmentUrl 저장 → 웹쉘 업로드 가능
+     *   - linkUrl 검증 없이 저장 → 피싱 URL 삽입 가능 (Phase 2 공격 진입점)
      */
     public NoticeDto createNotice(Long adminUserId, String title, String content,
-                                  String attachmentName, String attachmentUrl) {
+                                  String attachmentName, String attachmentUrl,
+                                  String linkUrl, boolean urgent) {
         if (title == null || title.trim().isEmpty() || content == null || content.trim().isEmpty()) {
             throw new IllegalArgumentException("title and content are required");
         }
         jdbcTemplate.update(
-                "INSERT INTO notices (title, content, author_id, attachment_name, attachment_url) VALUES (?, ?, ?, ?, ?)",
-                title.trim(),
-                content.trim(),
-                adminUserId,
-                attachmentName,
-                attachmentUrl
+                "INSERT INTO notices (title, content, author_id, attachment_name, attachment_url, link_url, urgent) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                title.trim(), content.trim(), adminUserId,
+                attachmentName, attachmentUrl, linkUrl, urgent ? 1 : 0
         );
         Long id = jdbcTemplate.queryForObject("SELECT MAX(id) FROM notices", Long.class);
         return getNoticeWithAttachment(id);
