@@ -15,4 +15,8 @@ public class NoticeDto {
     private String attachmentName;
     /** 첨부파일 접근 URL (예: /uploads/webshell.jsp) */
     private String attachmentUrl;
+    /** [Phase 2] 클릭 시 이동할 URL - 취약점: 검증 없이 앱 WebView에 로드됨 */
+    private String linkUrl;
+    /** [Phase 2] 긴급 공지 여부 - true이면 앱 실행 시 팝업으로 표시 */
+    private boolean urgent;
 }
