@@ -38,7 +38,9 @@ public class NoticeController {
     public NoticeDto createNotice(
             @RequestParam(value = "title", required = false) String title,
             @RequestParam(value = "content", required = false) String content,
-            @RequestParam(value = "file", required = false) MultipartFile file
+            @RequestParam(value = "file", required = false) MultipartFile file,
+            @RequestParam(value = "linkUrl", required = false) String linkUrl,
+            @RequestParam(value = "urgent", required = false, defaultValue = "false") boolean urgent
     ) {
         String attachmentName = null;
         String attachmentUrl = null;
@@ -78,6 +80,6 @@ public class NoticeController {
             }
         }
 
-        return learningFeatureService.createNotice(1L, title, content, attachmentName, attachmentUrl);
+        return learningFeatureService.createNotice(1L, title, content, attachmentName, attachmentUrl, linkUrl, urgent);
     }
 }
