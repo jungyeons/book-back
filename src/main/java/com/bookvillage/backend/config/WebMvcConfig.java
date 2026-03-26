@@ -20,6 +20,10 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        // 업로드 파일 서빙 (팝업 이미지 등)
+        registry.addResourceHandler("/uploads/**")
+                .addResourceLocations("file:./uploads/");
+
         registry.addResourceHandler("/**")
                 .addResourceLocations("classpath:/static/")
                 .resourceChain(true)

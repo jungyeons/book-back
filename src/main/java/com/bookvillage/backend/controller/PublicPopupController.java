@@ -23,10 +23,12 @@ public class PublicPopupController {
             rs.getString("title"),
             rs.getString("content"),
             rs.getString("link_url"),
-            rs.getDate("start_date") != null ? rs.getDate("start_date").toLocalDate() : null,
-            rs.getDate("end_date") != null ? rs.getDate("end_date").toLocalDate() : null,
+            rs.getDate("start_date")   != null ? rs.getDate("start_date").toLocalDate()       : null,
+            rs.getDate("end_date")     != null ? rs.getDate("end_date").toLocalDate()         : null,
             rs.getBoolean("is_active"),
             rs.getString("device_type"),
+            rs.getString("popup_type"),
+            rs.getString("image_url"),
             rs.getTimestamp("created_at") != null ? rs.getTimestamp("created_at").toLocalDateTime() : null,
             rs.getTimestamp("updated_at") != null ? rs.getTimestamp("updated_at").toLocalDateTime() : null
     );
