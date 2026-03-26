@@ -10,10 +10,8 @@ import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import com.bookvillage.backend.service.S3StorageService;
+
 import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.util.List;
@@ -25,12 +23,11 @@ import java.util.UUID;
 public class PopupController {
 
     private final JdbcTemplate jdbc;
+    private final S3StorageService s3StorageService;
 
-    @Value("${file.base-path:./uploads}")
-    private String basePath;
-
-    public PopupController(JdbcTemplate jdbc) {
+    public PopupController(JdbcTemplate jdbc, S3StorageService s3StorageService) {
         this.jdbc = jdbc;
+        this.s3StorageService = s3StorageService;
     }
 
     private final RowMapper<PopupDto> rowMapper = (rs, rn) -> new PopupDto(
@@ -148,19 +145,30 @@ public class PopupController {
     // ── POST /admin/api/popups/upload-image ─────────────────────────────
     @PostMapping("/upload-image")
     public ResponseEntity<Map<String, String>> uploadImage(@RequestParam("file") MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "파일을 선택해주세요."));
+        }
         try {
-            String originalName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "image";
-            String ext = originalName.contains(".") ? originalName.substring(originalName.lastIndexOf('.')) : ".jpg";
-            String filename = UUID.randomUUID().toString() + ext;
+            String originalName = file.getOriginalFilename();
+            if (originalName == null || originalName.isBlank()) {
+                originalName = "image.jpg";
+            }
+            originalName = originalName.replace("\\", "/");
+            int idx = originalName.lastIndexOf('/');
+            if (idx >= 0) originalName = originalName.substring(idx + 1);
 
-            Path dir = Paths.get(basePath, "popups");
-            Files.createDirectories(dir);
-            file.transferTo(dir.resolve(filename).toFile());
-
-            String imageUrl = "/uploads/popups/" + filename;
+            String uuid = UUID.randomUUID().toString().replace("-", "");
+            String s3Key = "popups/" + uuid + "_" + originalName;
+            String imageUrl;
+            try {
+                imageUrl = s3StorageService.upload(
+                        file.getInputStream(), s3Key, file.getSize(), file.getContentType());
+            } catch (Exception e) {
+                return ResponseEntity.internalServerError().body(Map.of("error", "S3 업로드 실패: " + e.getMessage()));
+            }
             return ResponseEntity.ok(Map.of("imageUrl", imageUrl));
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().build();
+            return ResponseEntity.internalServerError().body(Map.of("error", "이미지 업로드 실패: " + e.getMessage()));
         }
     }
 }
