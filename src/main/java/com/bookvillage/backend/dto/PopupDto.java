@@ -14,6 +14,8 @@ public class PopupDto {
     @JsonProperty("isActive")
     private boolean active;
     private String deviceType;
+    private String popupType;   // "update" | "ad"
+    private String imageUrl;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -21,7 +23,8 @@ public class PopupDto {
 
     public PopupDto(Long id, String title, String content, String linkUrl,
                     LocalDate startDate, LocalDate endDate, boolean active,
-                    String deviceType, LocalDateTime createdAt, LocalDateTime updatedAt) {
+                    String deviceType, String popupType, String imageUrl,
+                    LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.title = title;
         this.content = content;
@@ -30,6 +33,8 @@ public class PopupDto {
         this.endDate = endDate;
         this.active = active;
         this.deviceType = deviceType;
+        this.popupType = popupType;
+        this.imageUrl = imageUrl;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -50,6 +55,10 @@ public class PopupDto {
     public void setActive(boolean active) { this.active = active; }
     public String getDeviceType() { return deviceType; }
     public void setDeviceType(String deviceType) { this.deviceType = deviceType; }
+    public String getPopupType() { return popupType; }
+    public void setPopupType(String popupType) { this.popupType = popupType; }
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
